@@ -173,6 +173,11 @@
   "loanRequests": [],
   "loginLogs": [
     {
+      "timestamp": "12/23/2025, 12:09:40 AM",
+      "user": "Admin",
+      "action": "Manually edited weekly schedule"
+    },
+    {
       "timestamp": "12/23/2025, 12:09:28 AM",
       "user": "Admin",
       "action": "Generated weekly schedule"
@@ -193,5 +198,5 @@
       "action": "Started chore: Dishes"
     }
   ],
-  "lastUpdated": "2025-12-23T06:09:30.616Z"
+  "lastUpdated": "2025-12-23T06:09:43.496Z"
 }
