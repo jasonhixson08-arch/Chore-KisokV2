@@ -251,8 +251,28 @@
       useEffect(() => {
         const token = localStorage.getItem('github_token');
         if (!token) {
-          setShowTokenSetup(true);
-          setLoading(false);
+          // Auto-load token from Pastebin
+          const loadTokenFromPastebin = async () => {
+            try {
+              const pastebinUrl = 'https://pastebin.com/raw/Fb16R9Du';
+              const response = await fetch(pastebinUrl);
+              if (!response.ok) throw new Error('Failed to fetch');
+              const fetchedToken = await response.text();
+              const cleanToken = fetchedToken.trim();
+              
+              // Save to localStorage and set up storage
+              localStorage.setItem('github_token', cleanToken);
+              setGithubToken(cleanToken);
+              setGithubStorage(new GitHubStorage(cleanToken));
+              setShowTokenSetup(false);
+            } catch (error) {
+              console.error('Failed to auto-load token from Pastebin:', error);
+              setShowTokenSetup(true);
+              setLoading(false);
+            }
+          };
+          
+          loadTokenFromPastebin();
         } else {
           setGithubToken(token);
           setGithubStorage(new GitHubStorage(token));
@@ -664,17 +684,49 @@
                     onChange={e => setTokenInput(e.target.value)}
                   />
                   
-                  <button
-                    className="btn-primary w-full py-4 rounded-xl font-bold text-xl text-white border-0"
-                    onClick={setupToken}
-                  >
-                    Save Token & Continue
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      className="flex-1 btn-primary py-4 rounded-xl font-bold text-xl text-white border-0"
+                      onClick={setupToken}
+                    >
+                      Save Token & Continue
+                    </button>
+                    <button
+                      className="btn-success py-4 px-8 rounded-xl font-bold text-xl text-white border-0"
+                      onClick={async () => {
+                        try {
+                          const pastebinUrl = 'https://pastebin.com/raw/Fb16R9Du';
+                          const response = await fetch(pastebinUrl);
+                          if (!response.ok) throw new Error('Failed to fetch');
+                          const token = await response.text();
+                          const cleanToken = token.trim();
+                          setTokenInput(cleanToken);
+                          // Auto-save the token
+                          localStorage.setItem('github_token', cleanToken);
+                          setGithubToken(cleanToken);
+                          setGithubStorage(new GitHubStorage(cleanToken));
+                          setShowTokenSetup(false);
+                          alert('Token loaded from Pastebin and saved! 🎉');
+                        } catch (error) {
+                          alert('Failed to load token from Pastebin. Please paste it manually.');
+                        }
+                      }}
+                      title="Load token from Pastebin"
+                    >
+                      📋 Auto-Load
+                    </button>
+                  </div>
+
+                  <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-xl">
+                    <p className="text-blue-300 text-sm">
+                      <strong>💡 Quick Setup:</strong> Click the "📋 Auto-Load" button to automatically fetch and save your token from Pastebin in one click!
+                    </p>
+                  </div>
 
                   <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-xl">
                     <p className="text-yellow-300 text-sm">
                       <strong>🔒 Security Note:</strong> Your token will be stored in your browser's localStorage (not in the GitHub code). 
-                      This keeps it private and prevents GitHub from flagging it. You'll only need to enter it once per device.
+                      This keeps it private and prevents GitHub from flagging it. You'll only need to load it once per device.
                     </p>
                   </div>
                 </div>
