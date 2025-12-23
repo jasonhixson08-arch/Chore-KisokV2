@@ -3,7 +3,7 @@
     {
       "id": "1",
       "name": "Joshua",
-      "balance": 9,
+      "balance": 12,
       "code": "9900"
     },
     {
@@ -64,6 +64,17 @@
     }
   ],
   "completedChores": [
+    {
+      "id": "1",
+      "name": "Dishes",
+      "pay": 3,
+      "status": "completed",
+      "assignedTo": "1",
+      "startTime": "1:57 AM",
+      "completedAt": "12/23/2025, 1:57:38 AM",
+      "userName": "Joshua",
+      "finishTime": "1:57 AM"
+    },
     {
       "id": "1",
       "name": "Dishes",
@@ -195,6 +206,16 @@
   "loanRequests": [],
   "loginLogs": [
     {
+      "timestamp": "12/23/2025, 1:57:38 AM",
+      "user": "Joshua",
+      "action": "Completed chore: Dishes (+$3)"
+    },
+    {
+      "timestamp": "12/23/2025, 1:57:37 AM",
+      "user": "Joshua",
+      "action": "Started chore: Dishes"
+    },
+    {
       "timestamp": "12/23/2025, 1:57:03 AM",
       "user": "Admin",
       "action": "Generated weekly schedule"
@@ -265,5 +286,5 @@
       "action": "Started chore: Dishes"
     }
   ],
-  "lastUpdated": "2025-12-23T07:57:31.682Z"
+  "lastUpdated": "2025-12-23T07:57:39.268Z"
 }
