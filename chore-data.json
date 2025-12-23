@@ -4,7 +4,8 @@
       "id": "1",
       "name": "Joshua",
       "balance": 14.5,
-      "code": "9090"
+      "code": "9090",
+      "exempt": true
     },
     {
       "id": "2",
@@ -8576,6 +8577,11 @@
   ],
   "loginLogs": [
     {
+      "timestamp": "12/23/2025, 1:06:21 PM",
+      "user": "Admin",
+      "action": "Added exemption for Joshua"
+    },
+    {
       "timestamp": "12/23/2025, 1:06:11 PM",
       "user": "Admin",
       "action": "Generated yearly schedule with all chores assigned daily"
@@ -8786,5 +8792,5 @@
       "action": "Started chore: Dishes"
     }
   ],
-  "lastUpdated": "2025-12-23T19:06:14.273Z"
+  "lastUpdated": "2025-12-23T19:06:22.679Z"
 }
