@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chore Kiosk</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .animate-fade-in-up { 
+      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .glass-dark {
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      box-shadow: 0 10px 30px -10px rgba(102, 126, 234, 0.6);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px -10px rgba(102, 126, 234, 0.8);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      box-shadow: 0 10px 30px -10px rgba(17, 153, 142, 0.5);
+    }
+    
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px -10px rgba(17, 153, 142, 0.7);
+    }
+    
+    .btn-danger {
+      background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+      box-shadow: 0 10px 30px -10px rgba(238, 9, 121, 0.5);
+    }
+    
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px -10px rgba(238, 9, 121, 0.7);
+    }
+    
+    .btn-warning {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      box-shadow: 0 10px 30px -10px rgba(240, 147, 251, 0.5);
+    }
+    
+    .btn-warning:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px -10px rgba(240, 147, 251, 0.7);
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.5);
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea !important;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // GitHub Configuration
+    const GITHUB_CONFIG = {
+      owner: 'jasonhixson08-arch',
+      repo: 'Chore-KisokV2',
+      token: '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',
+      branch: 'main',
+      dataFile: 'chore-data.json'
+    };
+
+    const DAYS = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+    const defaultUsers = [
+      { id: "1", name: "Joshua", balance: 0, code: "9900" },
+      { id: "2", name: "Jayden", balance: 0, code: "9999" },
+      { id: "3", name: "Daysha", balance: 0, code: "8585" },
+      { id: "4", name: "Jason", balance: 0, code: "9485" },
+      { id: "5", name: "Mom", balance: 0, code: "1010" }
+    ];
+
+    const defaultChores = [
+      { id: "1", name: "Dishes", pay: 3, status: "available" },
+      { id: "2", name: "Trash", pay: 0.50, status: "available" },
+      { id: "3", name: "Counters", pay: 0.50, status: "available" },
+      { id: "4", name: "Living Room", pay: 2, status: "available" },
+      { id: "5", name: "Floors", pay: 3, status: "available" }
+    ];
+
+    // GitHub API Helper
+    class GitHubStorage {
+      constructor(config) {
+        this.config = config;
+        this.sha = null;
+      }
+
+      async loadData() {
+        try {
+          const url = `https://api.github.com/repos/${this.config.owner}/${this.config.repo}/contents/${this.config.dataFile}`;
+          const response = await fetch(url, {
+            headers: {
+              'Authorization': `token ${this.config.token}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          });
+
+          if (response.status === 404) {
+            return null;
+          }
+
+          if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.status}`);
+          }
+
+          const data = await response.json();
+          this.sha = data.sha;
+          const content = atob(data.content);
+          return JSON.parse(content);
+        } catch (error) {
+          console.error('Error loading from GitHub:', error);
+          return null;
+        }
+      }
+
+      async saveData(data) {
+        try {
+          const content = btoa(JSON.stringify(data, null, 2));
+          const url = `https://api.github.com/repos/${this.config.owner}/${this.config.repo}/contents/${this.config.dataFile}`;
+          
+          const body = {
+            message: `Update chore data - ${new Date().toLocaleString()}`,
+            content: content,
+            branch: this.config.branch
+          };
+
+          if (this.sha) {
+            body.sha = this.sha;
+          }
+
+          const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `token ${this.config.token}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('GitHub save error:', errorData);
+            throw new Error(`GitHub API error: ${response.status}`);
+          }
+
+          const result = await response.json();
+          this.sha = result.content.sha;
+          return true;
+        } catch (error) {
+          console.error('Error saving to GitHub:', error);
+          return false;
+        }
+      }
+    }
+
+    function ChoreKiosk() {
+      const [screen, setScreen] = useState("home");
+      const [users, setUsers] = useState(defaultUsers);
+      const [chores, setChores] = useState(defaultChores);
+      const [completedChores, setCompletedChores] = useState([]);
+      const [weeklySchedule, setWeeklySchedule] = useState({});
+      const [adminPin, setAdminPin] = useState("");
+      const [userCode, setUserCode] = useState("");
+      const [selectedChore, setSelectedChore] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [storedAdminPin, setStoredAdminPin] = useState("Hixson");
+      const [loanAmount, setLoanAmount] = useState("");
+      const [requestingLoanUser, setRequestingLoanUser] = useState(null);
+      const [loanRequests, setLoanRequests] = useState([]);
+      const [saveStatus, setSaveStatus] = useState("");
+      const [githubStorage] = useState(() => new GitHubStorage(GITHUB_CONFIG));
+      const [editingUser, setEditingUser] = useState(null);
+      const [editBalance, setEditBalance] = useState("");
+      const [editingChore, setEditingChore] = useState(null);
+      const [editChoreName, setEditChoreName] = useState("");
+      const [editChorePay, setEditChorePay] = useState("");
+      const [newChoreName, setNewChoreName] = useState("");
+      const [newChorePay, setNewChorePay] = useState("");
+      const [editingSchedule, setEditingSchedule] = useState(false);
+      const [tempSchedule, setTempSchedule] = useState({});
+      const [editingUserCode, setEditingUserCode] = useState(null);
+      const [newUserCode, setNewUserCode] = useState("");
+      const [confirmAdminPin, setConfirmAdminPin] = useState("");
+      const [newAdminPin, setNewAdminPin] = useState("");
+      const [confirmNewAdminPin, setConfirmNewAdminPin] = useState("");
+      const [loginLogs, setLoginLogs] = useState([]);
+
+      useEffect(() => {
+        loadFromGitHub();
+      }, []);
+
+      const loadFromGitHub = async () => {
+        setLoading(true);
+        const data = await githubStorage.loadData();
+        
+        if (data) {
+          if (data.users) setUsers(data.users);
+          if (data.chores) setChores(data.chores);
+          if (data.completedChores) setCompletedChores(data.completedChores);
+          if (data.weeklySchedule) setWeeklySchedule(data.weeklySchedule);
+          if (data.storedAdminPin) setStoredAdminPin(data.storedAdminPin);
+          if (data.loanRequests) setLoanRequests(data.loanRequests);
+          if (data.loginLogs) setLoginLogs(data.loginLogs);
+        }
+        
+        setLoading(false);
+      };
+
+      useEffect(() => {
+        if (loading) return;
+
+        const saveData = async () => {
+          setSaveStatus("saving");
+          const data = {
+            users,
+            chores,
+            completedChores,
+            weeklySchedule,
+            storedAdminPin,
+            loanRequests,
+            loginLogs,
+            lastUpdated: new Date().toISOString()
+          };
+
+          const success = await githubStorage.saveData(data);
+          setSaveStatus(success ? "saved" : "error");
+          
+          setTimeout(() => setSaveStatus(""), 2000);
+        };
+
+        const timeoutId = setTimeout(saveData, 1000);
+        return () => clearTimeout(timeoutId);
+      }, [users, chores, completedChores, weeklySchedule, storedAdminPin, loanRequests, loginLogs, loading]);
+
+      const addLoginLog = (user, action) => {
+        const log = { timestamp: new Date().toLocaleString(), user, action };
+        setLoginLogs(prev => [log, ...prev].slice(0, 100));
+      };
+
+      const startChoreWithCode = (chore) => {
+        setSelectedChore(chore);
+        setUserCode("");
+        setScreen("code-entry");
+      };
+
+      const verifyAndStartChore = () => {
+        const user = users.find(u => u.code === userCode);
+        if (!user || !selectedChore) {
+          alert("Invalid code!");
+          return;
+        }
+        const startTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        setChores(c => c.map(ch => ch.id === selectedChore.id ? 
+          { ...ch, status: "in-progress", assignedTo: user.id, startTime } : ch
+        ));
+        addLoginLog(user.name, `Started chore: ${selectedChore.name}`);
+        setUserCode("");
+        setScreen("chores");
+      };
+
+      const completeChore = (chore) => {
+        const user = users.find(u => u.id === chore.assignedTo);
+        if (!user) return;
+        setUsers(u => u.map(usr => usr.id === chore.assignedTo ? 
+          { ...usr, balance: usr.balance + chore.pay } : usr
+        ));
+        const finishTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        const completedChore = {
+          ...chore,
+          status: "completed",
+          completedAt: new Date().toLocaleString(),
+          userName: user.name,
+          startTime: chore.startTime,
+          finishTime
+        };
+        setCompletedChores(prev => [completedChore, ...prev].slice(0, 50));
+        addLoginLog(user.name, `Completed chore: ${chore.name} (+$${chore.pay})`);
+        setChores(c => c.map(ch => ch.id === chore.id ? 
+          { ...ch, status: "available", assignedTo: undefined, startTime: undefined } : ch
+        ));
+      };
+
+      const requestLoan = () => {
+        if (!requestingLoanUser) return;
+        const amount = parseFloat(loanAmount);
+        if (isNaN(amount) || amount <= 0 || amount > 10) {
+          alert("Loan must be between $0.01 and $10.00");
+          return;
+        }
+        if (requestingLoanUser.balance < 0) {
+          alert("Cannot request a loan while in debt. Pay off existing debt first.");
+          return;
+        }
+        const newRequest = {
+          id: Date.now().toString(),
+          userId: requestingLoanUser.id,
+          userName: requestingLoanUser.name,
+          amount: amount,
+          status: "pending",
+          requestedAt: new Date().toLocaleString()
+        };
+        setLoanRequests(prev => [newRequest, ...prev]);
+        addLoginLog(requestingLoanUser.name, `Requested loan of $${amount.toFixed(2)}`);
+        alert("Loan request submitted!");
+        setLoanAmount("");
+        setScreen("balances");
+      };
+
+      const assignWeeklySchedule = () => {
+        const newSchedule = {};
+        const heavyChores = ["Dishes", "Floors"];
+        const regularChores = chores.filter(c => !heavyChores.includes(c.name));
+        
+        DAYS.forEach(day => {
+          const dayAssignments = {};
+          const usersForDay = [...users];
+          const userChoreCount = new Map(usersForDay.map(u => [u.id, 0]));
+          
+          usersForDay.sort(() => Math.random() - 0.5);
+          
+          regularChores.forEach((chore, idx) => {
+            const user = usersForDay[idx % usersForDay.length];
+            if (!dayAssignments[user.id]) dayAssignments[user.id] = [];
+            dayAssignments[user.id].push(chore.name);
+            userChoreCount.set(user.id, (userChoreCount.get(user.id) || 0) + 1);
+          });
+          
+          const usersWithOneChore = usersForDay.filter(u => (userChoreCount.get(u.id) || 0) === 1);
+          heavyChores.forEach((choreName, idx) => {
+            if (usersWithOneChore[idx]) {
+              const user = usersWithOneChore[idx];
+              if (!dayAssignments[user.id]) dayAssignments[user.id] = [];
+              dayAssignments[user.id].push(choreName);
+            }
+          });
+          
+          newSchedule[day] = dayAssignments;
+        });
+        
+        setWeeklySchedule(newSchedule);
+        addLoginLog("Admin", "Generated weekly schedule");
+        alert("Weekly schedule generated!");
+      };
+
+      const startEditBalance = (user) => {
+        setEditingUser(user);
+        setEditBalance(user.balance.toString());
+        setScreen("edit-balance");
+      };
+
+      const saveBalance = () => {
+        if (!editingUser) return;
+        const newBalance = parseFloat(editBalance);
+        if (isNaN(newBalance)) {
+          alert("Invalid balance");
+          return;
+        }
+        setUsers(u => u.map(usr => usr.id === editingUser.id ? { ...usr, balance: newBalance } : usr));
+        addLoginLog("Admin", `Updated ${editingUser.name}'s balance to $${newBalance}`);
+        setScreen("admin");
+      };
+
+      const startEditChore = (chore) => {
+        setEditingChore(chore);
+        setEditChoreName(chore.name);
+        setEditChorePay(chore.pay.toString());
+        setScreen("edit-chore");
+      };
+
+      const saveChore = () => {
+        if (!editingChore) return;
+        const newPay = parseFloat(editChorePay);
+        if (isNaN(newPay) || !editChoreName.trim()) {
+          alert("Invalid chore data");
+          return;
+        }
+        setChores(c => c.map(ch => ch.id === editingChore.id ? 
+          { ...ch, name: editChoreName, pay: newPay } : ch
+        ));
+        addLoginLog("Admin", `Updated chore: ${editChoreName}`);
+        setScreen("admin");
+      };
+
+      const addNewChore = () => {
+        const pay = parseFloat(newChorePay);
+        if (!newChoreName.trim() || isNaN(pay)) {
+          alert("Invalid chore data");
+          return;
+        }
+        const newChore = { id: Date.now().toString(), name: newChoreName, pay, status: "available" };
+        setChores(prev => [...prev, newChore]);
+        addLoginLog("Admin", `Added new chore: ${newChoreName} ($${pay})`);
+        setNewChoreName("");
+        setNewChorePay("");
+      };
+
+      const deleteChore = (choreId) => {
+        const chore = chores.find(c => c.id === choreId);
+        if (chore && confirm(`Delete ${chore.name}?`)) {
+          setChores(prev => prev.filter(c => c.id !== choreId));
+          addLoginLog("Admin", `Deleted chore: ${chore.name}`);
+        }
+      };
+
+      const approveLoan = (requestId) => {
+        const request = loanRequests.find(r => r.id === requestId);
+        if (!request) return;
+        setUsers(u => u.map(usr => usr.id === request.userId ? 
+          { ...usr, balance: usr.balance + request.amount } : usr
+        ));
+        setLoanRequests(prev => prev.map(r => r.id === requestId ? 
+          { ...r, status: "approved", approvedAt: new Date().toLocaleString() } : r
+        ));
+        addLoginLog("Admin", `Approved loan of $${request.amount.toFixed(2)} for ${request.userName}`);
+      };
+
+      const denyLoan = (requestId) => {
+        const request = loanRequests.find(r => r.id === requestId);
+        if (!request) return;
+        setLoanRequests(prev => prev.map(r => r.id === requestId ? 
+          { ...r, status: "denied", deniedAt: new Date().toLocaleString() } : r
+        ));
+        addLoginLog("Admin", `Denied loan request for ${request.userName}`);
+      };
+
+      const startEditSchedule = () => {
+        setTempSchedule(JSON.parse(JSON.stringify(weeklySchedule)));
+        setEditingSchedule(true);
+      };
+
+      const saveScheduleEdit = () => {
+        setWeeklySchedule(tempSchedule);
+        setEditingSchedule(false);
+        addLoginLog("Admin", "Manually edited weekly schedule");
+        alert("Schedule updated!");
+      };
+
+      const addChoreToSchedule = (day, userId, choreName) => {
+        setTempSchedule(prev => ({
+          ...prev,
+          [day]: {
+            ...prev[day],
+            [userId]: [...(prev[day]?.[userId] || []), choreName]
+          }
+        }));
+      };
+
+      const removeChoreFromSchedule = (day, userId, choreIndex) => {
+        setTempSchedule(prev => {
+          const userChores = [...(prev[day]?.[userId] || [])];
+          userChores.splice(choreIndex, 1);
+          return {
+            ...prev,
+            [day]: {
+              ...prev[day],
+              [userId]: userChores
+            }
+          };
+        });
+      };
+
+      const startEditUserCode = (user) => {
+        setEditingUserCode(user);
+        setNewUserCode("");
+        setConfirmAdminPin("");
+      };
+
+      const saveUserCode = () => {
+        if (!editingUserCode) return;
+        if (confirmAdminPin !== storedAdminPin) {
+          alert("Incorrect admin PIN");
+          return;
+        }
+        if (newUserCode.length !== 4 || !/^\d{4}$/.test(newUserCode)) {
+          alert("Code must be exactly 4 digits");
+          return;
+        }
+        setUsers(u => u.map(usr => usr.id === editingUserCode.id ? 
+          { ...usr, code: newUserCode } : usr
+        ));
+        addLoginLog("Admin", `Changed PIN for ${editingUserCode.name}`);
+        alert("User code updated!");
+        setEditingUserCode(null);
+        setNewUserCode("");
+        setConfirmAdminPin("");
+      };
+
+      const changeAdminPin = () => {
+        if (confirmAdminPin !== storedAdminPin) {
+          alert("Current admin PIN is incorrect");
+          return;
+        }
+        if (newAdminPin.length < 4) {
+          alert("New PIN must be at least 4 characters");
+          return;
+        }
+        if (newAdminPin !== confirmNewAdminPin) {
+          alert("New PINs don't match");
+          return;
+        }
+        setStoredAdminPin(newAdminPin);
+        addLoginLog("Admin", "Changed admin PIN");
+        alert("Admin PIN changed successfully!");
+        setConfirmAdminPin("");
+        setNewAdminPin("");
+        setConfirmNewAdminPin("");
+      };
+
+      if (loading) {
+        return (
+          <div style={{minHeight: '100vh', background: 'linear-gradient(to bottom right, #0f172a, #581c87, #0f172a)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <div style={{textAlign: 'center'}}>
+              <div style={{width: '64px', height: '64px', border: '4px solid #a855f7', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px'}}></div>
+              <div style={{fontSize: '20px', fontWeight: '500', color: '#d8b4fe'}}>Loading from GitHub...</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-white p-4 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="glass-dark p-6 mb-8 flex items-center justify-between rounded-3xl">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  Chore Tracker
+                </div>
+                {saveStatus && (
+                  <div className={`text-sm px-3 py-1 rounded-full ${
+                    saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-300' :
+                    saveStatus === 'saved' ? 'bg-green-500/20 text-green-300' :
+                    'bg-red-500/20 text-red-300'
+                  }`}>
+                    {saveStatus === 'saving' ? '💾 Saving...' :
+                     saveStatus === 'saved' ? '✓ Saved' :
+                     '⚠ Save Error'}
+                  </div>
+                )}
+              </div>
+              <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("admin-login")}>
+                Admin
+              </button>
+            </div>
+
+            {screen === "home" && (
+              <div className="animate-fade-in-up">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                  <button className="btn-primary p-10 text-xl font-bold rounded-3xl text-white border-0" onClick={() => setScreen("chores")}>
+                    <div className="text-4xl mb-3">📋</div>
+                    View Chores
+                  </button>
+                  <button className="btn-success p-10 text-xl font-bold rounded-3xl text-white border-0" onClick={() => setScreen("balances")}>
+                    <div className="text-4xl mb-3">💰</div>
+                    Balances
+                  </button>
+                  <button className="btn-warning p-10 text-xl font-bold rounded-3xl text-white border-0" onClick={() => setScreen("schedule")}>
+                    <div className="text-4xl mb-3">📅</div>
+                    Schedule
+                  </button>
+                </div>
+                
+                <div>
+                  <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Recently Completed</h2>
+                  <div className="glass rounded-3xl p-6 max-h-96 overflow-y-auto">
+                    {completedChores.length === 0 ? (
+                      <div className="text-slate-400 text-center py-12">No completed chores yet</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {completedChores.slice(0, 10).map((ch, idx) => (
+                          <div key={idx} className="card p-5 rounded-2xl">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="font-bold text-lg text-white">{ch.name}</span>
+                              <span className="text-green-400 font-bold text-lg">${ch.pay.toFixed(2)}</span>
+                            </div>
+                            <div className="text-sm text-slate-300 font-medium">{ch.userName}</div>
+                            <div className="text-xs text-slate-500 mt-2">
+                              {ch.startTime} → {ch.finishTime}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {screen === "chores" && (
+              <div className="animate-fade-in-up">
+                <div className="flex justify-between items-center mb-8">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Chores</h1>
+                  <button className="bg-white/10 hover:bg-white/20 px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("home")}>← Back</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {chores.map(chore => (
+                    <div key={chore.id} className="card p-6 rounded-2xl">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-2xl font-bold text-white mb-1">{chore.name}</h3>
+                          <span className="text-green-400 font-bold text-xl">${chore.pay.toFixed(2)}</span>
+                        </div>
+                        <span className={`px-4 py-2 rounded-xl font-semibold text-sm ${
+                          chore.status === 'available' ? 'bg-green-500/20 text-green-300' : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {chore.status === 'available' ? 'Available' : 'In Progress'}
+                        </span>
+                      </div>
+                      {chore.status === 'available' ? (
+                        <button className="btn-primary w-full py-3 rounded-xl font-bold text-white border-0" onClick={() => startChoreWithCode(chore)}>
+                          Start Chore
+                        </button>
+                      ) : (
+                        <div>
+                          <div className="text-sm mb-2 text-slate-400">Started: {chore.startTime}</div>
+                          <button className="btn-success w-full py-3 rounded-xl font-bold text-white border-0" onClick={() => completeChore(chore)}>
+                            Mark Complete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {screen === "code-entry" && selectedChore && (
+              <div className="max-w-md mx-auto animate-fade-in-up">
+                <h2 className="text-3xl font-bold mb-6 text-white text-center">Enter Your Code</h2>
+                <div className="glass rounded-3xl p-8">
+                  <div className="text-xl mb-4 text-center text-slate-300">Starting: <span className="font-bold text-white">{selectedChore.name}</span></div>
+                  <input 
+                    className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white text-lg mb-6 text-center placeholder-slate-500 transition-all duration-300" 
+                    type="password" 
+                    placeholder="Enter 4-digit code" 
+                    value={userCode} 
+                    onChange={e => setUserCode(e.target.value)} 
+                    maxLength={4}
+                  />
+                  <div className="flex gap-3">
+                    <button className="flex-1 btn-primary font-bold px-8 py-4 rounded-xl text-white border-0" onClick={verifyAndStartChore}>Start</button>
+                    <button className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("chores")}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {screen === "balances" && (
+              <div className="max-w-3xl mx-auto animate-fade-in-up">
+                <div className="flex justify-between items-center mb-8">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Balances</h1>
+                  <button className="bg-white/10 hover:bg-white/20 px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("home")}>← Back</button>
+                </div>
+                <div className="space-y-4">
+                  {users.map(u => (
+                    <div key={u.id} className="card p-6 rounded-2xl">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-2xl font-bold text-white">{u.name}</span>
+                        <span className={`text-3xl font-bold ${u.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          ${u.balance.toFixed(2)}
+                        </span>
+                      </div>
+                      {u.balance >= 0 && (
+                        <button className="btn-primary px-5 py-2 rounded-xl font-semibold text-sm text-white border-0" onClick={() => { setRequestingLoanUser(u); setScreen("loan-request"); }}>
+                          Request Loan
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {screen === "loan-request" && requestingLoanUser && (
+              <div className="max-w-md mx-auto animate-fade-in-up">
+                <h2 className="text-3xl font-bold mb-6 text-white text-center">Request Loan</h2>
+                <div className="glass rounded-3xl p-8">
+                  <div className="text-xl mb-4 text-center text-slate-300">Requesting for: <span className="font-bold text-white">{requestingLoanUser.name}</span></div>
+                  <input 
+                    className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white text-lg mb-6 placeholder-slate-500 transition-all duration-300" 
+                    type="number" 
+                    step="0.01"
+                    placeholder="Amount (max $10)" 
+                    value={loanAmount} 
+                    onChange={e => setLoanAmount(e.target.value)} 
+                  />
+                  <div className="flex gap-3">
+                    <button className="flex-1 btn-primary font-bold px-8 py-4 rounded-xl text-white border-0" onClick={requestLoan}>Submit Request</button>
+                    <button className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("balances")}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {screen === "schedule" && (
+              <div className="animate-fade-in-up">
+                <div className="flex justify-between items-center mb-8">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Weekly Schedule</h1>
+                  <button className="bg-white/10 hover:bg-white/20 px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("home")}>← Back</button>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {DAYS.map(day => (
+                    <div key={day} className="card p-6 rounded-2xl">
+                      <h3 className="text-2xl font-bold mb-4 text-purple-300">{day}</h3>
+                      {weeklySchedule[day] ? (
+                        <div className="space-y-2">
+                          {Object.entries(weeklySchedule[day]).map(([userId, choresList]) => {
+                            const user = users.find(u => u.id === userId);
+                            return (
+                              <div key={userId} className="glass-dark p-3 rounded-xl">
+                                <span className="font-semibold text-white">{user?.name}: </span>
+                                <span className="text-slate-300">{choresList.join(", ")}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-slate-500">No assignments yet</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {screen === "admin-login" && (
+              <div className="max-w-md mx-auto animate-fade-in-up">
+                <h2 className="text-3xl font-bold mb-6 text-white text-center">Admin Login</h2>
+                <div className="glass rounded-3xl p-8">
+                  <input 
+                    className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white text-lg mb-6 placeholder-slate-500 transition-all duration-300" 
+                    type="password" 
+                    placeholder="Enter PIN" 
+                    value={adminPin} 
+                    onChange={e => setAdminPin(e.target.value)} 
+                  />
+                  <div className="flex gap-3">
+                    <button className="flex-1 btn-primary font-bold px-8 py-4 rounded-xl text-white border-0" onClick={() => {
+                      if (adminPin === storedAdminPin) {
+                        setScreen("admin");
+                        setAdminPin("");
+                        addLoginLog("Admin", "Logged in");
+                      } else {
+                        alert("Incorrect PIN");
+                      }
+                    }}>Login</button>
+                    <button className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => { setScreen("home"); setAdminPin(""); }}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {screen === "edit-balance" && editingUser && (
+              <div className="max-w-md mx-auto animate-fade-in-up">
+                <h2 className="text-3xl font-bold mb-6 text-white text-center">Edit Balance - {editingUser.name}</h2>
+                <div className="glass rounded-3xl p-8">
+                  <input 
+                    className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white text-lg mb-6 placeholder-slate-500 transition-all duration-300" 
+                    type="number" 
+                    step="0.01" 
+                    value={editBalance} 
+                    onChange={e => setEditBalance(e.target.value)} 
+                  />
+                  <div className="flex gap-3">
+                    <button className="flex-1 btn-success font-bold px-8 py-4 rounded-xl text-white border-0" onClick={saveBalance}>Save</button>
+                    <button className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("admin")}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {screen === "edit-chore" && editingChore && (
+              <div className="max-w-md mx-auto animate-fade-in-up">
+                <h2 className="text-3xl font-bold mb-6 text-white text-center">Edit Chore</h2>
+                <div className="glass rounded-3xl p-8">
+                  <input 
+                    className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white text-lg mb-4 placeholder-slate-500 transition-all duration-300" 
+                    type="text" 
+                    placeholder="Chore name" 
+                    value={editChoreName} 
+                    onChange={e => setEditChoreName(e.target.value)} 
+                  />
+                  <input 
+                    className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white text-lg mb-6 placeholder-slate-500 transition-all duration-300" 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="Pay" 
+                    value={editChorePay} 
+                    onChange={e => setEditChorePay(e.target.value)} 
+                  />
+                  <div className="flex gap-3">
+                    <button className="flex-1 btn-success font-bold px-8 py-4 rounded-xl text-white border-0" onClick={saveChore}>Save</button>
+                    <button className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("admin")}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {screen === "admin" && (
+              <div className="animate-fade-in-up">
+                <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Admin Panel</h1>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                  <button className="btn-warning px-8 py-4 rounded-xl font-bold text-xl text-white border-0" onClick={assignWeeklySchedule}>
+                    🎲 Auto-Assign Schedule
+                  </button>
+                  <button className="btn-primary px-8 py-4 rounded-xl font-bold text-xl text-white border-0" onClick={startEditSchedule}>
+                    ✏️ Edit Schedule
+                  </button>
+                </div>
+
+                <h2 className="text-2xl font-bold text-purple-400 mb-4">💰 Pending Loan Requests</h2>
+                <div className="glass rounded-2xl p-6 mb-8">
+                  {loanRequests.filter(r => r.status === "pending").length === 0 ? (
+                    <div className="text-slate-400 text-center py-4">No pending loan requests</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {loanRequests.filter(r => r.status === "pending").map(req => (
+                        <div key={req.id} className="card p-4 rounded-xl flex justify-between items-center">
+                          <div>
+                            <div className="font-bold text-lg text-white">{req.userName}</div>
+                            <div className="text-sm text-slate-300">Amount: ${req.amount.toFixed(2)}</div>
+                            <div className="text-xs text-slate-500">{req.requestedAt}</div>
+                          </div>
+                          <div className="flex gap-3">
+                            <button className="btn-success px-4 py-2 rounded-lg font-bold text-white border-0" onClick={() => approveLoan(req.id)}>✓ Approve</button>
+                            <button className="btn-danger px-4 py-2 rounded-lg font-bold text-white border-0" onClick={() => denyLoan(req.id)}>✗ Deny</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <h2 className="text-2xl font-bold text-purple-400 mb-4">👥 User Balances</h2>
+                <div className="space-y-3 mb-8">
+                  {users.map(u => (
+                    <div key={u.id} className="card p-4 rounded-xl flex justify-between items-center">
+                      <div>
+                        <span className="font-bold text-lg text-white">{u.name}</span>
+                        <span className="text-sm text-slate-400 ml-3">Code: {u.code}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-2xl font-bold ${u.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>${u.balance.toFixed(2)}</span>
+                        <button className="btn-primary px-4 py-2 rounded-lg font-bold text-white border-0 text-sm" onClick={() => startEditBalance(u)}>Edit</button>
+                        <button className="btn-warning px-4 py-2 rounded-lg font-bold text-white border-0 text-sm" onClick={() => startEditUserCode(u)}>PIN</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <h2 className="text-2xl font-bold text-purple-400 mb-4">🔐 Change Admin PIN</h2>
+                <div className="glass rounded-2xl p-6 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <input className="p-3 bg-white/5 border-2 border-white/10 rounded-lg text-white placeholder-slate-500" type="password" placeholder="Current PIN" value={confirmAdminPin} onChange={e => setConfirmAdminPin(e.target.value)} />
+                    <input className="p-3 bg-white/5 border-2 border-white/10 rounded-lg text-white placeholder-slate-500" type="password" placeholder="New PIN" value={newAdminPin} onChange={e => setNewAdminPin(e.target.value)} />
+                    <input className="p-3 bg-white/5 border-2 border-white/10 rounded-lg text-white placeholder-slate-500" type="password" placeholder="Confirm New PIN" value={confirmNewAdminPin} onChange={e => setConfirmNewAdminPin(e.target.value)} />
+                  </div>
+                  <button className="btn-danger px-6 py-3 rounded-xl font-bold text-white border-0" onClick={changeAdminPin}>
+                    Change Admin PIN
+                  </button>
+                </div>
+
+                <h2 className="text-2xl font-bold text-purple-400 mb-4">📝 Manage Chores</h2>
+                <div className="glass rounded-2xl p-4 mb-4">
+                  <h3 className="font-bold mb-3 text-white">Add New Chore</h3>
+                  <div className="flex gap-3">
+                    <input className="flex-1 p-3 bg-white/5 border-2 border-white/10 rounded-lg text-white placeholder-slate-500" placeholder="Chore name" value={newChoreName} onChange={e => setNewChoreName(e.target.value)} />
+                    <input className="w-24 p-3 bg-white/5 border-2 border-white/10 rounded-lg text-white placeholder-slate-500" type="number" step="0.01" placeholder="Pay" value={newChorePay} onChange={e => setNewChorePay(e.target.value)} />
+                    <button className="btn-success px-6 py-3 rounded-lg font-bold text-white border-0" onClick={addNewChore}>Add</button>
+                  </div>
+                </div>
+                <div className="space-y-3 mb-8">
+                  {chores.map(ch => (
+                    <div key={ch.id} className="card p-4 rounded-xl flex justify-between items-center">
+                      <span className="font-bold text-lg text-white">{ch.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-green-400 font-bold text-lg">${ch.pay.toFixed(2)}</span>
+                        <button className="btn-primary px-4 py-2 rounded-lg font-bold text-white border-0 text-sm" onClick={() => startEditChore(ch)}>Edit</button>
+                        <button className="btn-danger px-4 py-2 rounded-lg font-bold text-white border-0 text-sm" onClick={() => deleteChore(ch.id)}>Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <h2 className="text-2xl font-bold text-purple-400 mb-4">📜 Login Logs</h2>
+                <div className="glass rounded-2xl p-6 max-h-80 overflow-y-auto mb-8">
+                  {loginLogs.length === 0 ? (
+                    <div className="text-slate-400 text-center py-4">No logs yet</div>
+                  ) : (
+                    loginLogs.map((log, idx) => (
+                      <div key={idx} className="border-b border-white/10 py-3 last:border-0">
+                        <div className="text-xs text-slate-500">{log.timestamp}</div>
+                        <div className="font-bold text-white">{log.user}</div>
+                        <div className="text-sm text-slate-300">{log.action}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <button className="btn-danger px-8 py-4 rounded-xl font-bold text-xl text-white border-0" onClick={() => setScreen("home")}>Exit Admin</button>
+              </div>
+            )}
+
+            {editingUserCode && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <div className="max-w-md w-full animate-fade-in-up">
+                  <div className="glass rounded-3xl p-8">
+                    <h2 className="text-2xl font-bold mb-6 text-white text-center">Edit PIN - {editingUserCode.name}</h2>
+                    <div className="mb-4 text-sm text-slate-400">Current Code: {editingUserCode.code}</div>
+                    <input 
+                      className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white mb-4 placeholder-slate-500" 
+                      type="password" 
+                      placeholder="Admin PIN (required)" 
+                      value={confirmAdminPin} 
+                      onChange={e => setConfirmAdminPin(e.target.value)} 
+                    />
+                    <input 
+                      className="w-full p-4 bg-white/5 border-2 border-white/10 rounded-xl text-white mb-6 placeholder-slate-500" 
+                      type="text" 
+                      placeholder="New 4-digit code" 
+                      value={newUserCode} 
+                      onChange={e => setNewUserCode(e.target.value)} 
+                      maxLength={4} 
+                    />
+                    <div className="flex gap-3">
+                      <button className="flex-1 btn-success font-bold px-8 py-4 rounded-xl text-white border-0" onClick={saveUserCode}>Save</button>
+                      <button className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => { setEditingUserCode(null); setNewUserCode(""); setConfirmAdminPin(""); }}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {editingSchedule && (
+              <div className="animate-fade-in-up">
+                <div className="flex justify-between items-center mb-8">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">✏️ Edit Schedule</h1>
+                  <div className="flex gap-4">
+                    <button className="btn-success px-6 py-3 rounded-xl font-bold text-white border-0" onClick={saveScheduleEdit}>Save</button>
+                    <button className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setEditingSchedule(false)}>Cancel</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {DAYS.map(day => (
+                    <div key={day} className="card p-6 rounded-2xl">
+                      <h3 className="text-2xl font-bold mb-4 text-purple-300">{day}</h3>
+                      <div className="space-y-3">
+                        {users.map(user => (
+                          <div key={user.id} className="glass-dark p-4 rounded-xl">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-bold text-lg text-white">{user.name}</span>
+                              <select 
+                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" 
+                                onChange={e => { 
+                                  if (e.target.value) {
+                                    addChoreToSchedule(day, user.id, e.target.value); 
+                                    e.target.value = ""; 
+                                  }
+                                }}
+                              >
+                                <option value="">+ Add chore</option>
+                                {chores.map(ch => (
+                                  <option key={ch.id} value={ch.name}>{ch.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {(tempSchedule[day]?.[user.id] || []).map((choreName, idx) => (
+                                <div key={idx} className="bg-white/10 px-3 py-1 rounded-lg flex items-center gap-2">
+                                  <span className="text-sm text-white">{choreName}</span>
+                                  <button 
+                                    className="text-red-400 hover:text-red-300 font-bold" 
+                                    onClick={() => removeChoreFromSchedule(day, user.id, idx)}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              {(!tempSchedule[day]?.[user.id] || tempSchedule[day][user.id].length === 0) && (
+                                <span className="text-slate-500 text-sm">No chores assigned</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<ChoreKiosk />, document.getElementById('root'));
+  </script>
+</body>
+</html>
