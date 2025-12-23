@@ -61,7 +61,8 @@
       "id": "5",
       "name": "Floors",
       "pay": 3,
-      "status": "available"
+      "status": "available",
+      "weight": "heavy"
     }
   ],
   "completedChores": [
@@ -481,6 +482,11 @@
   "loanRequests": [],
   "loginLogs": [
     {
+      "timestamp": "12/23/2025, 2:01:25 AM",
+      "user": "Admin",
+      "action": "Updated chore: Floors (heavy)"
+    },
+    {
       "timestamp": "12/23/2025, 2:01:19 AM",
       "user": "Admin",
       "action": "Updated chore: Dishes (heavy)"
@@ -576,5 +582,5 @@
       "action": "Started chore: Dishes"
     }
   ],
-  "lastUpdated": "2025-12-23T08:01:20.070Z"
+  "lastUpdated": "2025-12-23T08:01:26.857Z"
 }
