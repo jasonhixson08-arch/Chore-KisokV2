@@ -8516,19 +8516,31 @@
       "userId": "1",
       "userName": "Joshua",
       "amount": 10,
-      "status": "pending",
-      "requestedAt": "12/23/2025, 2:59:18 AM"
+      "status": "denied",
+      "requestedAt": "12/23/2025, 2:59:18 AM",
+      "deniedAt": "12/23/2025, 2:59:28 AM"
     },
     {
       "id": "1766480354956",
       "userId": "1",
       "userName": "Joshua",
       "amount": 10,
-      "status": "pending",
-      "requestedAt": "12/23/2025, 2:59:14 AM"
+      "status": "denied",
+      "requestedAt": "12/23/2025, 2:59:14 AM",
+      "deniedAt": "12/23/2025, 2:59:29 AM"
     }
   ],
   "loginLogs": [
+    {
+      "timestamp": "12/23/2025, 2:59:29 AM",
+      "user": "Admin",
+      "action": "Denied loan request for Joshua"
+    },
+    {
+      "timestamp": "12/23/2025, 2:59:28 AM",
+      "user": "Admin",
+      "action": "Denied loan request for Joshua"
+    },
     {
       "timestamp": "12/23/2025, 2:59:25 AM",
       "user": "Admin",
@@ -8655,5 +8667,5 @@
       "action": "Started chore: Dishes"
     }
   ],
-  "lastUpdated": "2025-12-23T08:59:26.890Z"
+  "lastUpdated": "2025-12-23T08:59:30.834Z"
 }
