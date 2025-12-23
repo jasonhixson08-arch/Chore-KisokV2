@@ -108,7 +108,7 @@
       dataFile: 'chore-data.json'
     };
 
-    const DAYS = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     const defaultUsers = [
       { id: "1", name: "Joshua", balance: 0, code: "9900" },
@@ -125,6 +125,38 @@
       { id: "4", name: "Living Room", pay: 2, status: "available" },
       { id: "5", name: "Floors", pay: 3, status: "available" }
     ];
+
+    // Get the last Monday of December
+    const getLastMondayOfDecember = () => {
+      const year = new Date().getFullYear();
+      const dec31 = new Date(year, 11, 31); // December 31
+      const dayOfWeek = dec31.getDay();
+      const daysToSubtract = (dayOfWeek + 6) % 7; // Days back to last Monday
+      const lastMonday = new Date(year, 11, 31 - daysToSubtract);
+      return lastMonday;
+    };
+
+    // Generate dates for the next 30 days starting from last Monday of December
+    const generateDatesFromLastMonday = () => {
+      const startDate = getLastMondayOfDecember();
+      const dates = [];
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
+        dates.push(date);
+      }
+      return dates;
+    };
+
+    const formatDate = (date) => {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return {
+        dayName: days[date.getDay()],
+        monthDay: `${months[date.getMonth()]} ${date.getDate()}`,
+        fullDate: date.toISOString().split('T')[0]
+      };
+    };
 
     // GitHub API Helper
     class GitHubStorage {
@@ -524,30 +556,28 @@
       const saveScheduleEdit = () => {
         setWeeklySchedule(tempSchedule);
         setEditingSchedule(false);
-        addLoginLog("Admin", "Manually edited weekly schedule");
+        addLoginLog("Admin", "Manually edited monthly schedule");
         alert("Schedule updated!");
       };
 
-      const addChoreToSchedule = (day, userId, choreName) => {
+      const addChoreToSchedule = (dateKey, userName, choreName) => {
+        const chorePay = chores.find(c => c.name === choreName)?.pay || 0;
         setTempSchedule(prev => ({
           ...prev,
-          [day]: {
-            ...prev[day],
-            [userId]: [...(prev[day]?.[userId] || []), choreName]
-          }
+          [dateKey]: [
+            ...(prev[dateKey] || []),
+            { userName, choreName, chorePay, userId: users.find(u => u.name === userName)?.id }
+          ]
         }));
       };
 
-      const removeChoreFromSchedule = (day, userId, choreIndex) => {
+      const removeChoreFromSchedule = (dateKey, assignmentIndex) => {
         setTempSchedule(prev => {
-          const userChores = [...(prev[day]?.[userId] || [])];
-          userChores.splice(choreIndex, 1);
+          const dayAssignments = [...(prev[dateKey] || [])];
+          dayAssignments.splice(assignmentIndex, 1);
           return {
             ...prev,
-            [day]: {
-              ...prev[day],
-              [userId]: userChores
-            }
+            [dateKey]: dayAssignments
           };
         });
       };
@@ -858,30 +888,51 @@
             {screen === "schedule" && (
               <div className="animate-fade-in-up">
                 <div className="flex justify-between items-center mb-8">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Weekly Schedule</h1>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Monthly Schedule</h1>
                   <button className="bg-white/10 hover:bg-white/20 px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setScreen("home")}>← Back</button>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                  {DAYS.map(day => (
-                    <div key={day} className="card p-6 rounded-2xl">
-                      <h3 className="text-2xl font-bold mb-4 text-purple-300">{day}</h3>
-                      {weeklySchedule[day] ? (
-                        <div className="space-y-2">
-                          {Object.entries(weeklySchedule[day]).map(([userId, choresList]) => {
-                            const user = users.find(u => u.id === userId);
-                            return (
-                              <div key={userId} className="glass-dark p-3 rounded-xl">
-                                <span className="font-semibold text-white">{user?.name}: </span>
-                                <span className="text-slate-300">{choresList.join(", ")}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-slate-500">No assignments yet</div>
-                      )}
+                
+                <div className="grid grid-cols-1 gap-3">
+                  {Object.entries(weeklySchedule).length === 0 ? (
+                    <div className="glass rounded-2xl p-12 text-center">
+                      <div className="text-6xl mb-4">📅</div>
+                      <p className="text-slate-400 text-xl">No schedule generated yet</p>
+                      <p className="text-slate-500 mt-2">Go to Admin panel to generate a schedule</p>
                     </div>
-                  ))}
+                  ) : (
+                    Object.entries(weeklySchedule).sort().map(([dateKey, assignments]) => {
+                      const date = new Date(dateKey);
+                      const formatted = formatDate(date);
+                      const isToday = dateKey === new Date().toISOString().split('T')[0];
+                      
+                      return (
+                        <div key={dateKey} className={`card p-5 rounded-2xl ${isToday ? 'ring-2 ring-purple-400' : ''}`}>
+                          <div className="flex justify-between items-center mb-3">
+                            <div>
+                              <h3 className="text-xl font-bold text-purple-300">{formatted.dayName}</h3>
+                              <p className="text-slate-400 text-sm">{formatted.monthDay}</p>
+                            </div>
+                            {isToday && (
+                              <span className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm font-semibold">
+                                Today
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {assignments.map((assignment, idx) => (
+                              <div key={idx} className="glass-dark p-3 rounded-xl flex justify-between items-center">
+                                <div>
+                                  <span className="font-semibold text-white block">{assignment.userName}</span>
+                                  <span className="text-slate-300 text-sm">{assignment.choreName}</span>
+                                </div>
+                                <span className="text-green-400 font-bold text-sm">${assignment.chorePay.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             )}
@@ -965,7 +1016,7 @@
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   <button className="btn-warning px-8 py-4 rounded-xl font-bold text-xl text-white border-0" onClick={assignWeeklySchedule}>
-                    🎲 Auto-Assign Schedule
+                    🎲 Generate Monthly Schedule
                   </button>
                   <button className="btn-primary px-8 py-4 rounded-xl font-bold text-xl text-white border-0" onClick={startEditSchedule}>
                     ✏️ Edit Schedule
@@ -1104,51 +1155,65 @@
                     <button className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl font-semibold transition-all duration-300 border border-white/10" onClick={() => setEditingSchedule(false)}>Cancel</button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                  {DAYS.map(day => (
-                    <div key={day} className="card p-6 rounded-2xl">
-                      <h3 className="text-2xl font-bold mb-4 text-purple-300">{day}</h3>
-                      <div className="space-y-3">
-                        {users.map(user => (
-                          <div key={user.id} className="glass-dark p-4 rounded-xl">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="font-bold text-lg text-white">{user.name}</span>
-                              <select 
-                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" 
-                                onChange={e => { 
-                                  if (e.target.value) {
-                                    addChoreToSchedule(day, user.id, e.target.value); 
-                                    e.target.value = ""; 
-                                  }
-                                }}
-                              >
-                                <option value="">+ Add chore</option>
-                                {chores.map(ch => (
-                                  <option key={ch.id} value={ch.name}>{ch.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {(tempSchedule[day]?.[user.id] || []).map((choreName, idx) => (
-                                <div key={idx} className="bg-white/10 px-3 py-1 rounded-lg flex items-center gap-2">
-                                  <span className="text-sm text-white">{choreName}</span>
-                                  <button 
-                                    className="text-red-400 hover:text-red-300 font-bold" 
-                                    onClick={() => removeChoreFromSchedule(day, user.id, idx)}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                              {(!tempSchedule[day]?.[user.id] || tempSchedule[day][user.id].length === 0) && (
-                                <span className="text-slate-500 text-sm">No chores assigned</span>
-                              )}
-                            </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {Object.entries(tempSchedule).sort().map(([dateKey, assignments]) => {
+                    const date = new Date(dateKey);
+                    const formatted = formatDate(date);
+                    
+                    return (
+                      <div key={dateKey} className="card p-5 rounded-2xl">
+                        <div className="flex justify-between items-center mb-3">
+                          <div>
+                            <h3 className="text-xl font-bold text-purple-300">{formatted.dayName}</h3>
+                            <p className="text-slate-400 text-sm">{formatted.monthDay}</p>
                           </div>
-                        ))}
+                          <div className="flex gap-2">
+                            <select 
+                              className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" 
+                              onChange={e => {
+                                const [userName, choreName] = e.target.value.split('|');
+                                if (userName && choreName) {
+                                  addChoreToSchedule(dateKey, userName, choreName);
+                                  e.target.value = "";
+                                }
+                              }}
+                            >
+                              <option value="">+ Add assignment</option>
+                              {users.map(user => 
+                                chores.map(chore => (
+                                  <option key={`${user.id}-${chore.id}`} value={`${user.name}|${chore.name}`}>
+                                    {user.name} - {chore.name}
+                                  </option>
+                                ))
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {(assignments || []).map((assignment, idx) => (
+                            <div key={idx} className="glass-dark p-3 rounded-xl flex justify-between items-center">
+                              <div>
+                                <span className="font-semibold text-white block">{assignment.userName}</span>
+                                <span className="text-slate-300 text-sm">{assignment.choreName}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-400 font-bold text-sm">${assignment.chorePay.toFixed(2)}</span>
+                                <button 
+                                  className="text-red-400 hover:text-red-300 font-bold text-lg" 
+                                  onClick={() => removeChoreFromSchedule(dateKey, idx)}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {(!assignments || assignments.length === 0) && (
+                            <span className="text-slate-500 text-sm">No assignments</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
