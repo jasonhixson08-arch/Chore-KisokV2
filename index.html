@@ -190,6 +190,7 @@
           if (!response.ok) {
             const errorData = await response.json();
             console.error('GitHub save error:', errorData);
+            alert(`Save Error: ${response.status} - ${errorData.message || 'Unknown error'}`);
             throw new Error(`GitHub API error: ${response.status}`);
           }
 
@@ -198,6 +199,7 @@
           return true;
         } catch (error) {
           console.error('Error saving to GitHub:', error);
+          alert(`Save Error Details: ${error.message}`);
           return false;
         }
       }
@@ -1046,6 +1048,4 @@
     ReactDOM.render(<ChoreKiosk />, document.getElementById('root'));
   </script>
 </body>
-
 </html>
-
